@@ -8,32 +8,37 @@ from src.packet_analysis import analyze_packets
 from src.visualizer import plot_protocol_distribution, plot_bandwidth_over_time
 from src.utils import filter_by_protocol, filter_by_ip
 
+# ------------------- Page Config -------------------
 st.set_page_config(page_title="Network Traffic Analyzer", page_icon="🛰️", layout="wide")
 
-# optional styles (if you have assets/styles.css)
+# ------------------- Styles -------------------
 if os.path.exists("assets/styles.css"):
     with open("assets/styles.css") as f:
         st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
-# header
+# ------------------- Header -------------------
 if os.path.exists("assets/logo.png"):
     st.image("assets/logo.png", width=100)
 st.title("🛰️ Network Traffic Analyzer & Performance Dashboard")
 st.write("Monitor and visualize simulated real-time network packets — demo and simulated live capture modes.")
 
-# Sidebar controls
+# ------------------- Sidebar Filters -------------------
 st.sidebar.header("🔍 Filters")
-protocol_choice = st.sidebar.selectbox("Filter by Protocol", ["All", "TCP", "UDP", "HTTP", "HTTPS", "DNS", "SSH", "FTP", "ICMP"])
+protocol_choice = st.sidebar.selectbox(
+    "Filter by Protocol",
+    ["All", "TCP", "UDP", "HTTP", "HTTPS", "DNS", "SSH", "FTP", "ICMP"]
+)
 ip_filter = st.sidebar.text_input("Filter by IP (src or dst)")
 
 mode = st.radio("Select Mode:", ["Demo (sample data)", "Live Capture (simulated)"])
 
-# Use session state to hold dataframe and run state
+# ------------------- Session State -------------------
 if "df" not in st.session_state:
     st.session_state.df = pd.DataFrame(columns=["timestamp", "src_ip", "dst_ip", "protocol", "length"])
 if "running" not in st.session_state:
     st.session_state.running = False
 
+# ------------------- Controls -------------------
 col1, col2 = st.columns([1, 3])
 with col1:
     duration = st.slider("Capture Duration (seconds)", 5, 60, 15)
@@ -43,7 +48,7 @@ with col2:
     st.markdown("### Controls")
     st.write("Choose Demo to load the sample CSV, or Live Capture (simulated) for streaming data.")
 
-# load demo
+# ------------------- Start/Stop Capture -------------------
 if start:
     st.session_state.running = True
     st.session_state.df = pd.DataFrame(columns=["timestamp", "src_ip", "dst_ip", "protocol", "length"])
@@ -51,73 +56,91 @@ if start:
 if stop:
     st.session_state.running = False
 
+# ------------------- Demo Mode -------------------
 if mode == "Demo (sample data)":
     try:
-        df = pd.read_csv("data/sample_packets.csv")
-        st.session_state.df = df
+        df_demo = pd.read_csv("data/sample_packets.csv")
+        st.session_state.df = df_demo
     except Exception as e:
         st.error("Could not load sample_packets.csv: " + str(e))
 
-# If running simulated live, iterate generator
+# ------------------- Live Capture Mode -------------------
 if mode == "Live Capture (simulated)" and st.session_state.running:
     placeholder_table = st.empty()
     protocol_chart = st.empty()
     bandwidth_chart = st.empty()
     progress_bar = st.progress(0)
 
-    for i, df in enumerate(simulate_live_packets(duration)):
-        # update session dataframe
-        st.session_state.df = df
+    for i, df_live in enumerate(simulate_live_packets(duration)):
+        st.session_state.df = df_live
 
-        # apply filters
+        # Apply filters
         filtered = filter_by_protocol(st.session_state.df, protocol_choice)
         filtered = filter_by_ip(filtered, ip_filter)
 
-        # analysis and visuals
+        # Analysis
         summary, proto_summary = analyze_packets(filtered)
 
-        # left: metrics and proto pie
+        # Display Network Summary
         with st.container():
             st.markdown("## Network Summary")
             st.json(summary)
+
+        # Plots
         protocol_fig = plot_protocol_distribution(proto_summary)
         bandwidth_fig = plot_bandwidth_over_time(filtered)
 
+        # Display tables and charts
         placeholder_table.dataframe(filtered.tail(15), use_container_width=True)
         if protocol_fig:
             protocol_chart.plotly_chart(protocol_fig, use_container_width=True)
         if bandwidth_fig:
             bandwidth_chart.plotly_chart(bandwidth_fig, use_container_width=True)
 
+        # Progress bar
         progress_bar.progress((i + 1) / duration)
         if not st.session_state.running:
             break
 
     st.success("Simulated live capture finished or stopped.")
 
-# If demo mode (or not running live) show static dashboard
+# ------------------- Static Dashboard -------------------
 if not st.session_state.running:
     df_show = st.session_state.df.copy()
-    # apply filters
-    df_show = filter_by_protocol(df_show, protocol_choice)
-    df_show = filter_by_ip(df_show, ip_filter)
+    filtered_df = filter_by_protocol(df_show, protocol_choice)
+    filtered_df = filter_by_ip(filtered_df, ip_filter)
 
-    summary, proto_summary = analyze_packets(df_show)
+    summary, proto_summary = analyze_packets(filtered_df)
 
     st.markdown("## Network Summary")
     st.json(summary)
 
+    # Plots side by side
     cols = st.columns(2)
     with cols[0]:
         st.markdown("### Protocol Usage")
-        fig = plot_protocol_distribution(proto_summary)
-        if fig:
-            st.plotly_chart(fig, use_container_width=True)
+        proto_fig = plot_protocol_distribution(proto_summary)
+        if proto_fig:
+            st.plotly_chart(proto_fig, use_container_width=True)
     with cols[1]:
         st.markdown("### Bandwidth Over Time")
-        fig2 = plot_bandwidth_over_time(df_show)
-        if fig2:
-            st.plotly_chart(fig2, use_container_width=True)
+        bw_fig = plot_bandwidth_over_time(filtered_df)
+        if bw_fig:
+            st.plotly_chart(bw_fig, use_container_width=True)
 
+    # Raw packets table
     st.markdown("### Raw Packets (latest)")
-    st.dataframe(df_show.tail(40), use_container_width=True)
+    st.dataframe(filtered_df.tail(40), use_container_width=True)
+
+    # ------------------- CSV Export -------------------
+    csv = filtered_df.to_csv(index=False).encode('utf-8')
+    st.download_button(
+        label="📥 Download CSV",
+        data=csv,
+        file_name="network_traffic.csv",
+        mime="text/csv"
+    )
+
+# ------------------- Future Enhancement -------------------
+# TODO: Add anomaly detection flag (threshold-based alerts)
+
