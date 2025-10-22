@@ -34,3 +34,51 @@ Experience the live demo of the **Network Traffic Analyzer** here:
 1. Clone the repository:  
 ```bash
 git clone https://github.com/yourusername/network-traffic-analyzer.git
+Navigate to the project folder:
+
+cd network-traffic-analyzer
+
+
+Install dependencies:
+
+pip install -r requirements.txt
+
+
+Run the Streamlit app:
+
+streamlit run app.py
+
+Folder Structure
+network-traffic-analyzer/
+│
+├── app.py                  # Main Streamlit app
+├── requirements.txt        # Python dependencies
+├── .gitignore
+├── README.md
+├── LICENSE
+│
+├── src/                    # Python modules
+│   ├── __init__.py
+│   ├── packet_capture.py
+│   ├── packet_analysis.py
+│   ├── visualizer.py
+│   ├── utils.py
+│
+├── data/                   # Sample CSV data
+│   └── sample_packets.csv
+│
+├── assets/                 # Assets like logo & CSS
+│   ├── logo.png
+│   └── styles.css
+
+Technologies Used
+
+Python 3.x
+
+Streamlit
+
+Pandas
+
+Plotly
+
+CSV handling and data visualization
