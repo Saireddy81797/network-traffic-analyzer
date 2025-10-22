@@ -16,7 +16,8 @@ if os.path.exists("assets/styles.css"):
         st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
 # header
-st.image("assets/logo.png", width=100) if os.path.exists("assets/logo.png") else None
+if os.path.exists("assets/logo.png"):
+    st.image("assets/logo.png", width=100)
 st.title("🛰️ Network Traffic Analyzer & Performance Dashboard")
 st.write("Monitor and visualize simulated real-time network packets — demo and simulated live capture modes.")
 
