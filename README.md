@@ -24,6 +24,16 @@ The **Network Traffic Analyzer** is a **Streamlit-based interactive dashboard** 
 
 ---
 
+## Technologies Used
+
+Python 3.x
+Streamlit
+Pandas
+Plotly
+CSV handling and data visualization
+
+---
+
 ## Demo
 Experience the live demo of the **Network Traffic Analyzer** here:  
 [🚀 Click Here to Open Live Demo](https://saireddy81797-network-traffic-analyzer-app-1ztz4t.streamlit.app/)
@@ -71,14 +81,3 @@ network-traffic-analyzer/
 │   ├── logo.png
 │   └── styles.css
 
-Technologies Used
-
-Python 3.x
-
-Streamlit
-
-Pandas
-
-Plotly
-
-CSV handling and data visualization
