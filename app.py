@@ -29,7 +29,6 @@ protocol_choice = st.sidebar.selectbox(
     ["All", "TCP", "UDP", "HTTP", "HTTPS", "DNS", "SSH", "FTP", "ICMP"]
 )
 ip_filter = st.sidebar.text_input("Filter by IP (src or dst)")
-
 mode = st.radio("Select Mode:", ["Demo (sample data)", "Live Capture (simulated)"])
 
 # ------------------- Session State -------------------
@@ -65,7 +64,6 @@ if mode == "Demo (sample data)":
         st.error("Could not load sample_packets.csv: " + str(e))
 
 # ------------------- Anomaly Detection -------------------
-# Protocol-specific thresholds
 THRESHOLDS = {
     "TCP": 1500,
     "UDP": 1200,
@@ -85,7 +83,82 @@ def detect_anomalies(df):
 def highlight_anomalies(row):
     return ['background-color: #FFB6C1' if row.anomaly else '' for _ in row]
 
-# ------------------- Live Capture Mode -------------------
+# Protocol icons
+PROTOCOL_ICONS = {
+    "TCP": "🌐",
+    "UDP": "📡",
+    "HTTP": "🌍",
+    "HTTPS": "🔒",
+    "DNS": "🧭",
+    "SSH": "🔑",
+    "FTP": "📁",
+    "ICMP": "📶"
+}
+
+# ------------------- Function to Display Dashboard -------------------
+def display_dashboard(df_input):
+    if df_input.empty:
+        st.info("No packets to display.")
+        return
+
+    filtered_df = filter_by_protocol(df_input, protocol_choice)
+    filtered_df = filter_by_ip(filtered_df, ip_filter)
+
+    # Detect anomalies
+    filtered_df = detect_anomalies(filtered_df)
+    filtered_df['protocol_icon'] = filtered_df['protocol'].map(PROTOCOL_ICONS).fillna("❓")
+
+    # Analysis
+    summary, proto_summary = analyze_packets(filtered_df)
+
+    # Metrics cards
+    total_packets = len(filtered_df)
+    total_anomalies = filtered_df['anomaly'].sum()
+    protocols_used = filtered_df['protocol'].nunique()
+    cols = st.columns(3)
+    with cols[0]:
+        st.markdown(f'<div class="metric-card">📦 Total Packets<br>{total_packets}</div>', unsafe_allow_html=True)
+    with cols[1]:
+        st.markdown(f'<div class="metric-card">⚠️ Anomalies<br>{total_anomalies}</div>', unsafe_allow_html=True)
+    with cols[2]:
+        st.markdown(f'<div class="metric-card">🧩 Protocols<br>{protocols_used}</div>', unsafe_allow_html=True)
+
+    # Show anomaly summary
+    if total_anomalies > 0:
+        st.warning(f"⚠️ {total_anomalies} anomalous packet(s) detected.")
+
+    # Plots side by side
+    plot_cols = st.columns(2)
+    with plot_cols[0]:
+        st.markdown("### Protocol Usage")
+        proto_fig = plot_protocol_distribution(proto_summary)
+        if proto_fig:
+            st.plotly_chart(proto_fig, use_container_width=True)
+    with plot_cols[1]:
+        st.markdown("### Bandwidth Over Time")
+        bw_fig = plot_bandwidth_over_time(filtered_df)
+        if bw_fig:
+            st.plotly_chart(bw_fig, use_container_width=True)
+
+    # Raw packets table
+    st.markdown("### Raw Packets (latest)")
+    st.dataframe(
+        filtered_df[['protocol_icon','timestamp','src_ip','dst_ip','protocol','length','anomaly']]
+            .tail(40)
+            .style.apply(highlight_anomalies, axis=1),
+        use_container_width=True
+    )
+
+    # CSV Export
+    csv = filtered_df.to_csv(index=False).encode('utf-8')
+    st.download_button(
+        label="📥 Download CSV",
+        data=csv,
+        file_name="network_traffic.csv",
+        mime="text/csv"
+    )
+
+# ------------------- Run Dashboard -------------------
 if mode == "Live Capture (simulated)" and st.session_state.running:
     placeholder_table = st.empty()
     protocol_chart = st.empty()
@@ -94,87 +167,10 @@ if mode == "Live Capture (simulated)" and st.session_state.running:
 
     for i, df_live in enumerate(simulate_live_packets(duration)):
         st.session_state.df = df_live
-
-        # Apply filters
-        filtered = filter_by_protocol(st.session_state.df, protocol_choice)
-        filtered = filter_by_ip(filtered, ip_filter)
-
-        # Detect anomalies
-        filtered = detect_anomalies(filtered)
-
-        # Analysis
-        summary, proto_summary = analyze_packets(filtered)
-
-        # Display Network Summary
-        with st.container():
-            st.markdown("## Network Summary")
-            st.json(summary)
-
-        # Highlight anomalies
-        num_anomalies = filtered['anomaly'].sum()
-        if num_anomalies > 0:
-            st.warning(f"⚠️ {num_anomalies} anomalous packet(s) detected.")
-
-        # Plots
-        protocol_fig = plot_protocol_distribution(proto_summary)
-        bandwidth_fig = plot_bandwidth_over_time(filtered)
-
-        # Display tables and charts
-        placeholder_table.dataframe(filtered.tail(15).style.apply(highlight_anomalies, axis=1), use_container_width=True)
-        if protocol_fig:
-            protocol_chart.plotly_chart(protocol_fig, use_container_width=True)
-        if bandwidth_fig:
-            bandwidth_chart.plotly_chart(bandwidth_fig, use_container_width=True)
-
-        # Progress bar
+        display_dashboard(st.session_state.df)
         progress_bar.progress((i + 1) / duration)
         if not st.session_state.running:
             break
-
     st.success("Simulated live capture finished or stopped.")
-
-# ------------------- Static Dashboard -------------------
-if not st.session_state.running:
-    df_show = st.session_state.df.copy()
-    filtered_df = filter_by_protocol(df_show, protocol_choice)
-    filtered_df = filter_by_ip(filtered_df, ip_filter)
-
-    # Detect anomalies
-    filtered_df = detect_anomalies(filtered_df)
-
-    # Analysis
-    summary, proto_summary = analyze_packets(filtered_df)
-
-    st.markdown("## Network Summary")
-    st.json(summary)
-
-    # Highlight anomalies
-    num_anomalies = filtered_df['anomaly'].sum()
-    if num_anomalies > 0:
-        st.warning(f"⚠️ {num_anomalies} anomalous packet(s) detected.")
-
-    # Plots side by side
-    cols = st.columns(2)
-    with cols[0]:
-        st.markdown("### Protocol Usage")
-        proto_fig = plot_protocol_distribution(proto_summary)
-        if proto_fig:
-            st.plotly_chart(proto_fig, use_container_width=True)
-    with cols[1]:
-        st.markdown("### Bandwidth Over Time")
-        bw_fig = plot_bandwidth_over_time(filtered_df)
-        if bw_fig:
-            st.plotly_chart(bw_fig, use_container_width=True)
-
-    # Raw packets table with highlighted anomalies
-    st.markdown("### Raw Packets (latest)")
-    st.dataframe(filtered_df.tail(40).style.apply(highlight_anomalies, axis=1), use_container_width=True)
-
-    # ------------------- CSV Export -------------------
-    csv = filtered_df.to_csv(index=False).encode('utf-8')
-    st.download_button(
-        label="📥 Download CSV",
-        data=csv,
-        file_name="network_traffic.csv",
-        mime="text/csv"
-    )
+else:
+    display_dashboard(st.session_state.df)
