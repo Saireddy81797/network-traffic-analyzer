@@ -26,11 +26,11 @@ The **Network Traffic Analyzer** is a **Streamlit-based interactive dashboard** 
 
 ## Technologies Used
 
-Python 3.x
-Streamlit
-Pandas
-Plotly
-CSV handling and data visualization
+- **Python 3.x
+- **Streamlit
+- **Pandas
+- **Plotly
+- **CSV handling and data visualization
 
 ---
 
