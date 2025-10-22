@@ -56,13 +56,34 @@ if start:
 if stop:
     st.session_state.running = False
 
-# ------------------- Demo Mode -------------------
+# ------------------- Load Demo Data -------------------
 if mode == "Demo (sample data)":
     try:
         df_demo = pd.read_csv("data/sample_packets.csv")
         st.session_state.df = df_demo
     except Exception as e:
         st.error("Could not load sample_packets.csv: " + str(e))
+
+# ------------------- Anomaly Detection -------------------
+# Protocol-specific thresholds
+THRESHOLDS = {
+    "TCP": 1500,
+    "UDP": 1200,
+    "HTTP": 2000,
+    "HTTPS": 2000,
+    "DNS": 512,
+    "SSH": 1200,
+    "FTP": 2000,
+    "ICMP": 1500
+}
+
+def detect_anomalies(df):
+    df['length'] = pd.to_numeric(df['length'], errors='coerce').fillna(0)
+    df['anomaly'] = df.apply(lambda row: row['length'] > THRESHOLDS.get(row['protocol'], 1500), axis=1)
+    return df
+
+def highlight_anomalies(row):
+    return ['background-color: #FFB6C1' if row.anomaly else '' for _ in row]
 
 # ------------------- Live Capture Mode -------------------
 if mode == "Live Capture (simulated)" and st.session_state.running:
@@ -78,6 +99,9 @@ if mode == "Live Capture (simulated)" and st.session_state.running:
         filtered = filter_by_protocol(st.session_state.df, protocol_choice)
         filtered = filter_by_ip(filtered, ip_filter)
 
+        # Detect anomalies
+        filtered = detect_anomalies(filtered)
+
         # Analysis
         summary, proto_summary = analyze_packets(filtered)
 
@@ -86,12 +110,17 @@ if mode == "Live Capture (simulated)" and st.session_state.running:
             st.markdown("## Network Summary")
             st.json(summary)
 
+        # Highlight anomalies
+        num_anomalies = filtered['anomaly'].sum()
+        if num_anomalies > 0:
+            st.warning(f"⚠️ {num_anomalies} anomalous packet(s) detected.")
+
         # Plots
         protocol_fig = plot_protocol_distribution(proto_summary)
         bandwidth_fig = plot_bandwidth_over_time(filtered)
 
         # Display tables and charts
-        placeholder_table.dataframe(filtered.tail(15), use_container_width=True)
+        placeholder_table.dataframe(filtered.tail(15).style.apply(highlight_anomalies, axis=1), use_container_width=True)
         if protocol_fig:
             protocol_chart.plotly_chart(protocol_fig, use_container_width=True)
         if bandwidth_fig:
@@ -110,10 +139,19 @@ if not st.session_state.running:
     filtered_df = filter_by_protocol(df_show, protocol_choice)
     filtered_df = filter_by_ip(filtered_df, ip_filter)
 
+    # Detect anomalies
+    filtered_df = detect_anomalies(filtered_df)
+
+    # Analysis
     summary, proto_summary = analyze_packets(filtered_df)
 
     st.markdown("## Network Summary")
     st.json(summary)
+
+    # Highlight anomalies
+    num_anomalies = filtered_df['anomaly'].sum()
+    if num_anomalies > 0:
+        st.warning(f"⚠️ {num_anomalies} anomalous packet(s) detected.")
 
     # Plots side by side
     cols = st.columns(2)
@@ -128,9 +166,9 @@ if not st.session_state.running:
         if bw_fig:
             st.plotly_chart(bw_fig, use_container_width=True)
 
-    # Raw packets table
+    # Raw packets table with highlighted anomalies
     st.markdown("### Raw Packets (latest)")
-    st.dataframe(filtered_df.tail(40), use_container_width=True)
+    st.dataframe(filtered_df.tail(40).style.apply(highlight_anomalies, axis=1), use_container_width=True)
 
     # ------------------- CSV Export -------------------
     csv = filtered_df.to_csv(index=False).encode('utf-8')
@@ -140,26 +178,3 @@ if not st.session_state.running:
         file_name="network_traffic.csv",
         mime="text/csv"
     )
-
-# ------------------- Anomaly Detection -------------------
-# Define simple threshold
-PACKET_SIZE_THRESHOLD = 1500  # bytes
-
-def detect_anomalies(df):
-    """
-    Adds an 'anomaly' column: True if packet length > threshold
-    """
-    df['anomaly'] = df['length'] > PACKET_SIZE_THRESHOLD
-    return df
-
-# Apply anomaly detection
-filtered_df = detect_anomalies(filtered_df)
-
-# Show anomaly summary
-num_anomalies = filtered_df['anomaly'].sum()
-if num_anomalies > 0:
-    st.warning(f"⚠️ {num_anomalies} anomalous packet(s) detected (length > {PACKET_SIZE_THRESHOLD} bytes).")
-
-# ------------------- Future Enhancement -------------------
-# TODO: Add anomaly detection flag (threshold-based alerts)
-
