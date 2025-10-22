@@ -141,6 +141,25 @@ if not st.session_state.running:
         mime="text/csv"
     )
 
+# ------------------- Anomaly Detection -------------------
+# Define simple threshold
+PACKET_SIZE_THRESHOLD = 1500  # bytes
+
+def detect_anomalies(df):
+    """
+    Adds an 'anomaly' column: True if packet length > threshold
+    """
+    df['anomaly'] = df['length'] > PACKET_SIZE_THRESHOLD
+    return df
+
+# Apply anomaly detection
+filtered_df = detect_anomalies(filtered_df)
+
+# Show anomaly summary
+num_anomalies = filtered_df['anomaly'].sum()
+if num_anomalies > 0:
+    st.warning(f"⚠️ {num_anomalies} anomalous packet(s) detected (length > {PACKET_SIZE_THRESHOLD} bytes).")
+
 # ------------------- Future Enhancement -------------------
 # TODO: Add anomaly detection flag (threshold-based alerts)
 
