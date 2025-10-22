@@ -1,26 +1,26 @@
-/* assets/styles.css */
-
-/* Make headers more appealing */
-h1, h2, h3 {
-    color: #004D99; /* Cisco blue */
-    font-family: "Segoe UI", sans-serif;
+/* Gradient cards for metrics */
+.metric-card {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    padding: 20px;
+    border-radius: 15px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+    text-align: center;
+    margin-bottom: 20px;
+    font-weight: bold;
 }
 
-/* Customize buttons */
-button[data-baseweb="button"] {
-    background-color: #0078D7;
-    color: white !important;
-    border-radius: 8px;
-}
-
-/* Table and card styling */
-div[data-testid="stDataFrame"] {
+/* Warning/Alert boxes */
+.alert-warning {
+    background-color: #FFB6C1;
+    color: #800000;
+    padding: 10px;
     border-radius: 10px;
-    box-shadow: 0 0 8px rgba(0, 77, 153, 0.2);
+    font-weight: bold;
+    margin-bottom: 10px;
 }
 
-/* Sidebar customization */
-section[data-testid="stSidebar"] {
-    background-color: #F2F8FC;
-    border-right: 1px solid #E0E0E0;
+/* Dataframe anomalies highlight override */
+.stDataFrame div.row_widget.stDataFrameRow div.cell_value[data-anomaly="True"] {
+    background-color: #FFB6C1 !important;
 }
